@@ -1,19 +1,7 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  TrendingUp,
-  TrendingDown,
-  MessageSquare,
-  ThumbsUp,
-  ThumbsDown,
-  AlertCircle,
-  BarChart3,
-  PieChart as PieChartIcon
-} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,59 +10,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
+  BarChart3,
+  MessageSquare,
+  PieChart as PieChartIcon,
+  Search,
+  ThumbsDown,
+  ThumbsUp,
+  TrendingDown,
+  TrendingUp
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import {
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line
 } from 'recharts';
-import { apiService, type Drug } from "@/lib/api";
 import { toast } from "sonner";
 
-interface SentimentData {
+interface DrugSatisfactionData {
   drug_name: string;
-  positive_sentiment: number;
-  negative_sentiment: number;
-  neutral_sentiment: number;
-  overall_score: number;
-  total_reviews: number;
-  efficacy_sentiment: number;
-  side_effects_sentiment: number;
-  cost_sentiment: number;
+  satisfaction_score: number;
+  sentiment: 'Positive' | 'Neutral' | 'Negative';
 }
-
-// Mock sentiment data generator based on drug properties
-const generateSentimentData = (drugs: Drug[]): SentimentData[] => {
-  return drugs.map(drug => {
-    // Generate sentiment based on drug properties
-    const baseSentiment = Math.random() * 0.4 + 0.3; // 0.3 to 0.7
-    const costFactor = drug.pmpm_cost > 50 ? -0.2 : 0.1;
-    const efficacyFactor = drug.clinical_efficacy.toLowerCase().includes('effective') ? 0.2 : 0;
-    
-    const positive = Math.max(0, Math.min(1, baseSentiment + efficacyFactor)) * 100;
-    const negative = Math.max(0, Math.min(1, (1 - baseSentiment) + Math.abs(costFactor))) * 100;
-    const neutral = Math.max(0, 100 - positive - negative);
-    
-    return {
-      drug_name: drug.drug_name,
-      positive_sentiment: Math.round(positive),
-      negative_sentiment: Math.round(negative),
-      neutral_sentiment: Math.round(neutral),
-      overall_score: Math.round((positive - negative + 100) / 2), // 0-100 scale
-      total_reviews: Math.floor(Math.random() * 1000) + 50,
-      efficacy_sentiment: Math.round(Math.random() * 40 + 60), // 60-100
-      side_effects_sentiment: Math.round(Math.random() * 60 + 20), // 20-80
-      cost_sentiment: Math.round(Math.random() * 50 + 25) // 25-75
-    };
-  });
-};
 
 const getSentimentColor = (score: number) => {
   if (score >= 70) return 'text-success';
@@ -89,11 +53,9 @@ const getSentimentBadge = (score: number) => {
 };
 
 export default function SentimentAnalysis() {
-  const [drugs, setDrugs] = useState<Drug[]>([]);
-  const [sentimentData, setSentimentData] = useState<SentimentData[]>([]);
+  const [satisfactionData, setSatisfactionData] = useState<DrugSatisfactionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedClass, setSelectedClass] = useState("all");
   const [selectedSentiment, setSelectedSentiment] = useState("all");
 
   useEffect(() => {
@@ -103,12 +65,22 @@ export default function SentimentAnalysis() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getDrugs();
-      setDrugs(response.drugs);
+      // In a real app, you would fetch this from an API endpoint
+      // For this example, we'll fetch the local CSV file
+      const response = await fetch('backend/data/drug_satisfaction_vader.csv');
+      const csvText = await response.text();
       
-      // Generate sentiment data
-      const sentiment = generateSentimentData(response.drugs);
-      setSentimentData(sentiment);
+      const rows = csvText.split('\n').slice(1); // Skip header row
+      const data = rows.map(row => {
+        const [drug_name, satisfaction_score, sentiment] = row.split(',');
+        return {
+          drug_name,
+          satisfaction_score: parseFloat(satisfaction_score),
+          sentiment: sentiment as 'Positive' | 'Neutral' | 'Negative'
+        };
+      }).filter(item => item.drug_name); // Filter out any empty rows
+
+      setSatisfactionData(data);
     } catch (error) {
       toast.error("Failed to load data: " + (error as Error).message);
     } finally {
@@ -116,47 +88,27 @@ export default function SentimentAnalysis() {
     }
   };
 
-  const therapeuticClasses = [...new Set(drugs.map(drug => drug.therapeutic_class))].sort();
-
-  const filteredSentimentData = sentimentData.filter(item => {
-    const drug = drugs.find(d => d.drug_name === item.drug_name);
-    if (!drug) return false;
-
+  const filteredSatisfactionData = satisfactionData.filter(item => {
     const matchesSearch = item.drug_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = selectedClass === "all" || drug.therapeutic_class === selectedClass;
     const matchesSentiment = selectedSentiment === "all" || 
-      (selectedSentiment === "positive" && item.overall_score >= 70) ||
-      (selectedSentiment === "neutral" && item.overall_score >= 40 && item.overall_score < 70) ||
-      (selectedSentiment === "negative" && item.overall_score < 40);
+      item.sentiment.toLowerCase() === selectedSentiment;
 
-    return matchesSearch && matchesClass && matchesSentiment;
+    return matchesSearch && matchesSentiment;
   });
 
   // Aggregate data for charts
   const sentimentDistribution = [
-    { name: 'Positive', value: sentimentData.filter(d => d.overall_score >= 70).length, fill: 'hsl(var(--success))' },
-    { name: 'Neutral', value: sentimentData.filter(d => d.overall_score >= 40 && d.overall_score < 70).length, fill: 'hsl(var(--warning))' },
-    { name: 'Negative', value: sentimentData.filter(d => d.overall_score < 40).length, fill: 'hsl(var(--destructive))' }
+    { name: 'Positive', value: satisfactionData.filter(d => d.sentiment === 'Positive').length, fill: 'hsl(var(--success))' },
+    { name: 'Neutral', value: satisfactionData.filter(d => d.sentiment === 'Neutral').length, fill: 'hsl(var(--warning))' },
+    { name: 'Negative', value: satisfactionData.filter(d => d.sentiment === 'Negative').length, fill: 'hsl(var(--destructive))' }
   ];
-
-  const classAverageSentiment = therapeuticClasses.map(className => {
-    const classData = sentimentData.filter(item => {
-      const drug = drugs.find(d => d.drug_name === item.drug_name);
-      return drug?.therapeutic_class === className;
-    });
-    const avgScore = classData.reduce((sum, item) => sum + item.overall_score, 0) / classData.length;
-    return {
-      class: className.length > 15 ? className.substring(0, 15) + '...' : className,
-      score: Math.round(avgScore || 0)
-    };
-  }).slice(0, 8);
-
-  const topPositiveDrugs = [...sentimentData]
-    .sort((a, b) => b.overall_score - a.overall_score)
+  
+  const topPositiveDrugs = [...satisfactionData]
+    .sort((a, b) => b.satisfaction_score - a.satisfaction_score)
     .slice(0, 5);
 
-  const topNegativeDrugs = [...sentimentData]
-    .sort((a, b) => a.overall_score - b.overall_score)
+  const topNegativeDrugs = [...satisfactionData]
+    .sort((a, b) => a.satisfaction_score - b.satisfaction_score)
     .slice(0, 5);
 
   if (loading) {
@@ -173,9 +125,9 @@ export default function SentimentAnalysis() {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Drug Sentiment Analysis</h1>
+          <h1 className="text-3xl font-bold text-foreground">Drug Satisfaction Analysis</h1>
           <p className="text-muted-foreground">
-            AI-powered sentiment analysis of drug reviews and patient feedback
+            Analysis of drug satisfaction scores from patient feedback
           </p>
         </div>
         <Button onClick={loadData}>
@@ -185,16 +137,16 @@ export default function SentimentAnalysis() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
               <div className="p-2 bg-success/10 rounded-lg">
                 <ThumbsUp className="h-4 w-4 text-success" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Positive Reviews</p>
+                <p className="text-sm font-medium text-muted-foreground">Positive Drugs</p>
                 <p className="text-2xl font-bold text-success">
-                  {sentimentData.filter(d => d.overall_score >= 70).length}
+                  {sentimentDistribution.find(s => s.name === 'Positive')?.value || 0}
                 </p>
               </div>
             </div>
@@ -208,9 +160,9 @@ export default function SentimentAnalysis() {
                 <MessageSquare className="h-4 w-4 text-warning" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Neutral Reviews</p>
+                <p className="text-sm font-medium text-muted-foreground">Neutral Drugs</p>
                 <p className="text-2xl font-bold text-warning">
-                  {sentimentData.filter(d => d.overall_score >= 40 && d.overall_score < 70).length}
+                  {sentimentDistribution.find(s => s.name === 'Neutral')?.value || 0}
                 </p>
               </div>
             </div>
@@ -224,9 +176,9 @@ export default function SentimentAnalysis() {
                 <ThumbsDown className="h-4 w-4 text-destructive" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Negative Reviews</p>
+                <p className="text-sm font-medium text-muted-foreground">Negative Drugs</p>
                 <p className="text-2xl font-bold text-destructive">
-                  {sentimentData.filter(d => d.overall_score < 40).length}
+                  {sentimentDistribution.find(s => s.name === 'Negative')?.value || 0}
                 </p>
               </div>
             </div>
@@ -240,9 +192,9 @@ export default function SentimentAnalysis() {
                 <BarChart3 className="h-4 w-4 text-primary" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Avg Sentiment</p>
+                <p className="text-sm font-medium text-muted-foreground">Avg. Satisfaction</p>
                 <p className="text-2xl font-bold">
-                  {Math.round(sentimentData.reduce((sum, d) => sum + d.overall_score, 0) / sentimentData.length)}
+                  {Math.round(satisfactionData.reduce((sum, d) => sum + d.satisfaction_score, 0) / satisfactionData.length)}
                 </p>
               </div>
             </div>
@@ -265,20 +217,6 @@ export default function SentimentAnalysis() {
                 />
               </div>
             </div>
-            
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-full md:w-64">
-                <SelectValue placeholder="Therapeutic Class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {therapeuticClasses.map((cls) => (
-                  <SelectItem key={cls} value={cls}>
-                    {cls}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
             <Select value={selectedSentiment} onValueChange={setSelectedSentiment}>
               <SelectTrigger className="w-full md:w-48">
@@ -325,24 +263,25 @@ export default function SentimentAnalysis() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Average Sentiment by Class */}
+        
+        {/* Histogram of Scores could be added here if desired */}
         <Card>
-          <CardHeader>
-            <CardTitle>Average Sentiment by Therapeutic Class</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={classAverageSentiment}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="class" angle={-45} textAnchor="end" height={100} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Bar dataKey="score" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
+            <CardHeader>
+                <CardTitle>Satisfaction Score Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={satisfactionData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="drug_name" hide={true}/>
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="satisfaction_score" fill="hsl(var(--primary))" />
+                    </BarChart>
+                </ResponsiveContainer>
+            </CardContent>
         </Card>
+
       </div>
 
       {/* Top Performers */}
@@ -352,22 +291,21 @@ export default function SentimentAnalysis() {
           <CardHeader>
             <CardTitle className="flex items-center text-success">
               <TrendingUp className="h-5 w-5 mr-2" />
-              Top Positive Sentiment
+              Top 5 Positive Drugs
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {topPositiveDrugs.map((drug, index) => (
+              {topPositiveDrugs.map((drug) => (
                 <div key={drug.drug_name} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">{drug.drug_name}</p>
-                    <p className="text-sm text-muted-foreground">{drug.total_reviews} reviews</p>
                   </div>
                   <div className="text-right">
-                    <p className={`text-lg font-bold ${getSentimentColor(drug.overall_score)}`}>
-                      {drug.overall_score}
+                    <p className={`text-lg font-bold ${getSentimentColor(drug.satisfaction_score)}`}>
+                      {drug.satisfaction_score.toFixed(2)}
                     </p>
-                    {getSentimentBadge(drug.overall_score)}
+                    {getSentimentBadge(drug.satisfaction_score)}
                   </div>
                 </div>
               ))}
@@ -380,22 +318,21 @@ export default function SentimentAnalysis() {
           <CardHeader>
             <CardTitle className="flex items-center text-destructive">
               <TrendingDown className="h-5 w-5 mr-2" />
-              Needs Attention
+              Top 5 Negative Drugs
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {topNegativeDrugs.map((drug, index) => (
+              {topNegativeDrugs.map((drug) => (
                 <div key={drug.drug_name} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
                     <p className="font-medium">{drug.drug_name}</p>
-                    <p className="text-sm text-muted-foreground">{drug.total_reviews} reviews</p>
                   </div>
                   <div className="text-right">
-                    <p className={`text-lg font-bold ${getSentimentColor(drug.overall_score)}`}>
-                      {drug.overall_score}
+                    <p className={`text-lg font-bold ${getSentimentColor(drug.satisfaction_score)}`}>
+                      {drug.satisfaction_score.toFixed(2)}
                     </p>
-                    {getSentimentBadge(drug.overall_score)}
+                    {getSentimentBadge(drug.satisfaction_score)}
                   </div>
                 </div>
               ))}
@@ -404,10 +341,10 @@ export default function SentimentAnalysis() {
         </Card>
       </div>
 
-      {/* Detailed Sentiment Table */}
+      {/* Detailed Satisfaction Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Detailed Sentiment Analysis ({filteredSentimentData.length} drugs)</CardTitle>
+          <CardTitle>Detailed Drug Satisfaction ({filteredSatisfactionData.length} drugs)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -415,30 +352,22 @@ export default function SentimentAnalysis() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left p-2">Drug Name</th>
-                  <th className="text-left p-2">Overall Score</th>
-                  <th className="text-left p-2">Positive %</th>
-                  <th className="text-left p-2">Negative %</th>
-                  <th className="text-left p-2">Efficacy</th>
-                  <th className="text-left p-2">Side Effects</th>
-                  <th className="text-left p-2">Cost</th>
-                  <th className="text-left p-2">Total Reviews</th>
+                  <th className="text-left p-2">Satisfaction Score</th>
+                  <th className="text-left p-2">Sentiment</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSentimentData.map((item) => (
+                {filteredSatisfactionData.map((item) => (
                   <tr key={item.drug_name} className="border-b hover:bg-muted/50">
                     <td className="p-2 font-medium">{item.drug_name}</td>
                     <td className="p-2">
-                      <span className={`font-bold ${getSentimentColor(item.overall_score)}`}>
-                        {item.overall_score}
+                      <span className={`font-bold ${getSentimentColor(item.satisfaction_score)}`}>
+                        {item.satisfaction_score.toFixed(2)}
                       </span>
                     </td>
-                    <td className="p-2 text-success">{item.positive_sentiment}%</td>
-                    <td className="p-2 text-destructive">{item.negative_sentiment}%</td>
-                    <td className="p-2">{item.efficacy_sentiment}%</td>
-                    <td className="p-2">{item.side_effects_sentiment}%</td>
-                    <td className="p-2">{item.cost_sentiment}%</td>
-                    <td className="p-2">{item.total_reviews}</td>
+                    <td className="p-2">
+                        {getSentimentBadge(item.satisfaction_score)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
