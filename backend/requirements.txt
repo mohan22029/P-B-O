@@ -9,3 +9,10 @@ torch==2.0.1
 ast
 warnings
 itertools
+"uvicorn[standard]" fastapi
+python-multipart
+"uvicorn[standard]" fastapi 
+pandas 
+numpy
+statsmodels 
+scikit-learn

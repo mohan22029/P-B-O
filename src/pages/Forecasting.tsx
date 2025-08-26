@@ -10,7 +10,7 @@ const getDrugs = async () => {
       throw new Error(`Failed to fetch drugs: ${response.status} - ${errorText}`);
     }
     const drugs = await response.json();
-    console.log('Fetched drugs:', drugs.slice(1, 10)); // Log first 10 drugs for debugging
+    console.log('Fetched drugs:', drugs.slice(0,50)); // Log first 10 drugs for debugging
     return drugs;
   } catch (err) {
     console.error('Error in getDrugs:', err);
@@ -118,8 +118,8 @@ function Forecasting() {
     const fetchForecasts = async (drugList) => {
       try {
         const validDrugs = drugList.filter(drug => drug && typeof drug === 'string' && drug.trim() !== '');
-        console.log('Valid drugs for forecast:', validDrugs.slice(0,10)); // Log first 10 valid drugs
-        const forecastPromises = validDrugs.slice(0, 10).map(async (drug, index) => { // Limit to 10 drugs
+        console.log('Valid drugs for forecast:', validDrugs.slice(0,50)); // Log first 10 valid drugs
+        const forecastPromises = validDrugs.slice(0, 50).map(async (drug, index) => { // Limit to 10 drugs
           await new Promise(resolve => setTimeout(resolve, index * 100)); // Throttle requests
           try {
             const data = await getForecast(drug, parseInt(selectedSteps));

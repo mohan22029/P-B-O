@@ -47,31 +47,31 @@ const App = () => (
               <Formulary />
             </AppLayout>
           } />
-          <Route path="/scenarios" element={
+          {/* <Route path="/scenarios" element={
             <AppLayout>
               <Scenarios />
             </AppLayout>
-          } />
-          <Route path="/providers" element={
+          } /> */}
+          {/* <Route path="/providers" element={
             <AppLayout>
               <Providers />
             </AppLayout>
-          } />
-          <Route path="/adherence" element={
+          } /> */}
+          {/* <Route path="/adherence" element={
             <AppLayout>
               <Dashboard />
             </AppLayout>
-          } />
-          <Route path="/reports" element={
+          } /> */}
+          {/* <Route path="/reports" element={
             <AppLayout>
               <Dashboard />
             </AppLayout>
-          } />
-          <Route path="/settings" element={
+          } /> */}
+          {/* <Route path="/settings" element={
             <AppLayout>
               <Dashboard />
             </AppLayout>
-          } />
+          } /> */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

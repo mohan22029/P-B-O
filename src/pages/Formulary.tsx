@@ -1,12 +1,12 @@
 // Formulary.tsx
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Download, Plus, AlertTriangle, CheckCircle, Clock } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertTriangle, CheckCircle, Clock, Download, Filter, Plus, Search } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const getTierColor = (tier) => {
   switch (tier) {
@@ -40,7 +40,7 @@ export default function Formulary() {
     setLoading(true);
     // Note: Ensure your backend's CORS policy allows requests from your frontend's origin.
     // The provided server.py might be configured for http://localhost:8080 only.
-    fetch('http://localhost:3001/api/stats')
+    fetch('http://localhost:8000/api/stats')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -60,7 +60,7 @@ export default function Formulary() {
   useEffect(() => {
     setLoading(true);
     // Note: Ensure your backend's CORS policy allows requests from your frontend's origin.
-    const url = `http://localhost:3001/api/formulary?search=${encodeURIComponent(searchTerm)}&tier=${tierFilter}&pa=${paFilter}&page=${page}&limit=${pageSize}`;
+    const url = `http://localhost:8000/api/formulary?search=${encodeURIComponent(searchTerm)}&tier=${tierFilter}&pa=${paFilter}&page=${page}&limit=${pageSize}`;
     
     fetch(url)
       .then(res => {

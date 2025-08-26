@@ -3,7 +3,7 @@ import { AlertCircle, BarChart2, DollarSign, Info, Pill, Shield, ShieldAlert, Sh
 import React, { useEffect, useState } from 'react';
 
 // --- Configuration ---
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // --- Type Definitions ---
 interface Drug {

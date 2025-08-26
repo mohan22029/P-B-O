@@ -1,18 +1,3 @@
-import { useState } from "react";
-import { 
-  BarChart3, 
-  PillBottle, 
-  Users, 
-  Settings, 
-  TrendingUp,
-  FileText,
-  Shield,
-  Calculator,
-  Database,
-  MessageSquare,
-  Activity
-} from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +9,14 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Activity,
+  BarChart3,
+  Database,
+  MessageSquare,
+  PillBottle
+} from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: BarChart3 },
@@ -31,11 +24,11 @@ const navigationItems = [
   { title: "Sentiment Analysis", url: "/sentiment", icon: MessageSquare },
   { title: "Forecasting", url: "/forecasting", icon: Activity },
   { title: "Formulary", url: "/formulary", icon: PillBottle },
-  { title: "Scenarios", url: "/scenarios", icon: Calculator },
-  { title: "Providers", url: "/providers", icon: Users },
-  { title: "Adherence", url: "/adherence", icon: Shield },
-  { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Settings", url: "/settings", icon: Settings },
+  // { title: "Scenarios", url: "/scenarios", icon: Calculator },
+  // { title: "Providers", url: "/providers", icon: Users },
+  // { title: "Adherence", url: "/adherence", icon: Shield },
+  // { title: "Reports", url: "/reports", icon: FileText },
+  // { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
