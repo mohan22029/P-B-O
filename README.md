@@ -13,7 +13,7 @@ A comprehensive AI-powered PBM optimization platform designed to reduce pharmacy
 - Therapeutic equivalence optimization
 - Drug utilization trend prediction
 - Cost-per-member-per-month (PMPM) tracking
-- AI-powered drug recommendations
+- drug recommendations
 - Sentiment analysis of drug reviews
 - Predictive cost forecasting.
 
@@ -130,7 +130,7 @@ npm run dev
 
 7. **Access the Application**
 - Frontend: http://localhost:8080
-- Backend API: http://localhost:5000
+- Backend API: http://localhost:8000
 
 ## 🗂️ File Structure
 
@@ -164,8 +164,8 @@ backend/
 ## 🤖 ML Model Features
 
 ### Drug Recommendation Engine
-- **NLP-powered interaction analysis** using BART-large-mnli
-- **LightGBM regression model** for recommendation scoring
+- **NLP-RF powered interaction analysis** 
+- **K Means model** for recommendation scoring
 - **Therapeutic equivalence validation**
 - **Cost optimization with safety constraints**
 - **Real-time confidence scoring**
