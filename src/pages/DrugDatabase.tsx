@@ -1,36 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import {
-  Search,
-  Filter,
-  Download,
-  Plus,
-  ChevronRight,
   AlertTriangle,
-  TrendingUp,
-  Users,
-  DollarSign,
   Calendar,
   Database,
+  DollarSign,
+  Download,
+  Filter,
+  Plus,
+  Search,
+  Users
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -40,9 +23,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 import { apiService, type Drug } from "../lib/api";
-import { toast } from "sonner";
 
 const getTherapeuticEquivalenceBadge = (te_code: string | null) => {
   if (!te_code || te_code === "NA") {
@@ -113,8 +111,8 @@ export default function DrugDatabase() {
       const matchesSearch =
         drug.drug_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         drug.generic_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        drug.ndc.includes(searchTerm) ||
-        drug.atc_code.toLowerCase().includes(searchTerm.toLowerCase());
+        drug.ndc.includes(searchTerm);// ||
+        //drug.atc_code.includes(searchTerm);
 
       const matchesClass = selectedClass === "all" || drug.therapeutic_class === selectedClass;
 

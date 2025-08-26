@@ -212,8 +212,8 @@ def get_drug_names():
     """Provides the list of all unique drug names and their generic names."""
     if df is None:
         return jsonify({'error': 'Dataset not loaded'}), 500
-    drugs_list = df[['drug_name', 'generic_name']].drop_duplicates().to_dict('records')
-    return jsonify({'drugs': drugs_list, 'total_count': len(drugs_list)})
+    drugs_list = df.drop_duplicates(subset=['drug_name']).to_dict('records')
+    return jsonify({'drugs': clean_nan_for_json(drugs_list), 'total_count': len(drugs_list)})
 
 @app.route('/api/drug-stats', methods=['GET'])
 def get_drug_stats():

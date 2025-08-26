@@ -1,69 +1,86 @@
-import { useState } from "react";
+// Formulary.tsx
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Plus,
-  AlertTriangle,
-  CheckCircle,
-  Clock
-} from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { mockFormulary } from "@/lib/mock-data";
-import { FormularyEntry } from "@/types/pbm";
+import { Search, Filter, Download, Plus, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const getTierColor = (tier: FormularyEntry['tier']) => {
+const getTierColor = (tier) => {
   switch (tier) {
     case 'Preferred':
-      return 'bg-tier-preferred text-white';
+      return 'bg-green-500 text-white'; // Example color
     case 'Non-Preferred':
-      return 'bg-tier-non-preferred text-white';
+      return 'bg-yellow-500 text-white'; // Example color
     case 'Specialty':
-      return 'bg-tier-specialty text-white';
+      return 'bg-purple-500 text-white'; // Example color
     case 'Excluded':
-      return 'bg-tier-excluded text-white';
+      return 'bg-red-500 text-white'; // Example color
     default:
-      return 'bg-muted text-muted-foreground';
+      return 'bg-gray-400 text-white'; // Example color
   }
 };
 
 export default function Formulary() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [tierFilter, setTierFilter] = useState<string>("all");
-  const [paFilter, setPaFilter] = useState<string>("all");
+  const [tierFilter, setTierFilter] = useState("all");
+  const [paFilter, setPaFilter] = useState("all");
+  const [data, setData] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50); // This can remain as pageSize internally
+  const [stats, setStats] = useState({ total: 0, pa: 0, step: 0 });
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [error, setError] = useState(null);
 
-  const filteredFormulary = mockFormulary.filter((entry) => {
-    const matchesSearch = entry.drug_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         entry.ndc.includes(searchTerm);
-    const matchesTier = tierFilter === "all" || entry.tier === tierFilter;
-    const matchesPA = paFilter === "all" || 
-                     (paFilter === "pa_required" && entry.pa_required) ||
-                     (paFilter === "no_pa" && !entry.pa_required);
+  // Effect for fetching stats
+  useEffect(() => {
+    setLoading(true);
+    // Note: Ensure your backend's CORS policy allows requests from your frontend's origin.
+    // The provided server.py might be configured for http://localhost:8080 only.
+    fetch('http://localhost:3001/api/stats')
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        setStats(data);
+        setError(null);
+      })
+      .catch(err => {
+        console.error('Failed to fetch stats:', err);
+        setError('Failed to load stats. Please ensure the backend is running and accessible.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Effect for fetching formulary data
+  useEffect(() => {
+    setLoading(true);
+    // Note: Ensure your backend's CORS policy allows requests from your frontend's origin.
+    const url = `http://localhost:3001/api/formulary?search=${encodeURIComponent(searchTerm)}&tier=${tierFilter}&pa=${paFilter}&page=${page}&limit=${pageSize}`;
     
-    return matchesSearch && matchesTier && matchesPA;
-  });
+    fetch(url)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then(({ data, total }) => {
+        setData(data);
+        setTotal(total);
+        setError(null);
+      })
+      .catch(err => {
+        console.error('Failed to fetch formulary:', err);
+        setError('Failed to load formulary data. Please ensure the backend is running and accessible.');
+      })
+      .finally(() => setLoading(false));
+  }, [searchTerm, tierFilter, paFilter, page, pageSize]); // Added pageSize to dependency array
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Formulary Management</h1>
@@ -83,16 +100,24 @@ export default function Formulary() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {error && (
+        <Card className="border-red-500 bg-red-50">
+          <CardContent className="p-4 text-red-700 flex items-center">
+             <AlertTriangle className="h-5 w-5 mr-3" />
+            {error}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Drugs</p>
-                <p className="text-2xl font-bold">1,247</p>
+                <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-success" />
+              <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
@@ -101,9 +126,9 @@ export default function Formulary() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">PA Required</p>
-                <p className="text-2xl font-bold">234</p>
+                <p className="text-2xl font-bold">{stats.pa.toLocaleString()}</p>
               </div>
-              <AlertTriangle className="h-8 w-8 text-warning" />
+              <AlertTriangle className="h-8 w-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -112,26 +137,14 @@ export default function Formulary() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Step Therapy</p>
-                <p className="text-2xl font-bold">156</p>
+                <p className="text-2xl font-bold">{stats.step.toLocaleString()}</p>
               </div>
-              <Clock className="h-8 w-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Copay</p>
-                <p className="text-2xl font-bold">$24</p>
-              </div>
-              <div className="h-8 w-8 text-muted-foreground">$</div>
+              <Clock className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters and Search */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -144,15 +157,19 @@ export default function Formulary() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                {/* UPDATED: Changed placeholder to reflect new backend search capabilities */}
                 <Input
-                  placeholder="Search by drug name or NDC..."
+                  placeholder="Search by RXCUI or NDC..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1); // Reset to first page on new search
+                  }}
                   className="pl-10"
                 />
               </div>
             </div>
-            <Select value={tierFilter} onValueChange={setTierFilter}>
+            <Select value={tierFilter} onValueChange={(value) => { setTierFilter(value); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Filter by tier" />
               </SelectTrigger>
@@ -164,7 +181,7 @@ export default function Formulary() {
                 <SelectItem value="Excluded">Excluded</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={paFilter} onValueChange={setPaFilter}>
+            <Select value={paFilter} onValueChange={(value) => { setPaFilter(value); setPage(1); }}>
               <SelectTrigger className="w-full md:w-48">
                 <SelectValue placeholder="Prior Auth" />
               </SelectTrigger>
@@ -178,73 +195,88 @@ export default function Formulary() {
         </CardContent>
       </Card>
 
-      {/* Formulary Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Formulary Entries ({filteredFormulary.length})</CardTitle>
+          <CardTitle>Formulary Entries ({total.toLocaleString()})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>NDC</TableHead>
-                <TableHead>Drug Name</TableHead>
-                <TableHead>Tier</TableHead>
-                <TableHead>Copay</TableHead>
-                <TableHead>Prior Auth</TableHead>
-                <TableHead>Step Therapy</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredFormulary.map((entry) => (
-                <TableRow key={entry.ndc}>
-                  <TableCell className="font-mono text-sm">
-                    {entry.ndc}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {entry.drug_name}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getTierColor(entry.tier)}>
-                      {entry.tier}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>${entry.copay}</TableCell>
-                  <TableCell>
-                    {entry.pa_required ? (
-                      <Badge variant="secondary">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        Required
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">Not Required</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {entry.step_therapy ? (
-                      <Badge variant="secondary">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Yes
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">None</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        Impact
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {loading && !data.length ? (
+            <p>Loading...</p>
+          ) : total === 0 && !error ? (
+            <p>No results found. Try adjusting your filters.</p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>NDC</TableHead>
+                    {/* UPDATED: Changed header to reflect that name is now just the RXCUI */}
+                    <TableHead>Drug Identifier (RXCUI)</TableHead>
+                    <TableHead>Tier</TableHead>
+                    <TableHead>Prior Auth</TableHead>
+                    <TableHead>Step Therapy</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.map((entry, index) => (
+                    <TableRow key={`${entry.ndc}-${index}`}>
+                      <TableCell className="font-mono text-sm">
+                        {entry.ndc}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {entry.drug_name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getTierColor(entry.tier)}>
+                          {entry.tier}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {entry.pa_required ? (
+                          <Badge variant="secondary">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Required
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Not Required</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {entry.step_therapy ? (
+                          <Badge variant="secondary">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Yes
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">None</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline">
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Impact
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="flex justify-center items-center space-x-4 mt-4">
+                <Button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1 || loading}>
+                  Previous
+                </Button>
+                <span>Page {page} of {Math.ceil(total / pageSize)}</span>
+                <Button onClick={() => setPage(p => p + 1)} disabled={page * pageSize >= total || loading}>
+                  Next
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
