@@ -15,7 +15,7 @@ A comprehensive AI-powered PBM optimization platform designed to reduce pharmacy
 - Cost-per-member-per-month (PMPM) tracking
 - AI-powered drug recommendations
 - Sentiment analysis of drug reviews
-- Predictive cost forecasting
+- Predictive cost forecasting.
 
 ## 🏗️ Architecture
 
