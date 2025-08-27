@@ -1,94 +1,94 @@
-drug_name,satisfaction_score
-ACYCLOVIR,68.843
-ADVIL LIQUI-GELS,47.986000000000004
-AMBISOME,60.266
-AMPHOTEC,49.037000000000006
-APIXABAN,77.373
-Abacavir,51.056999999999995
-Accuretic,60.475
-Advair,72.178
-Ala-cort,60.51
-Amphotericin B,54.454
-Atorvastatin,73.825
-BUDESONIDE,48.051
-Benadryl,38.672000000000004
-CLARINEX,73.432
-CLARITIN,86.48599999999999
-Cardizem CD,65.193
-Coumadin,65.874
-Crestor,51.44
-DIFLUCAN,39.87
-DYMELOR,35.041
-Dificid,47.935
-Diphenhydramine,56.242999999999995
-Duetact,50.512
-Dulaglutide,62.658
-Econopred,35.701
-Eliquis,62.585
-Eliquis sprinkle,80.282
-Esomeprazole,83.745
-FIDAXOMICIN,43.177
-FLUCONAZOLE,49.556
-Furosemide,71.938
-GLUMETZA,71.05900000000001
-Gimoti,79.113
-Glipizide,65.715
-Glipizide XL,77.739
-IBUPROFEN,44.501999999999995
-Jantoven,46.343
-Janumet,75.429
-Januvia,60.51
-Ketoconazole,58.077999999999996
-Ketoderm,45.21
-Lasix,56.431
-Lipitor,32.765
-Lybalvi,68.82000000000001
-Lypqozet,62.572
-METAGLIP,52.371
-METFORMIN HYDROCHLORIDE,56.879000000000005
-Metoclopramide,59.214999999999996
-NIZORAL,50.038000000000004
-Nexium,68.826
-OSELTAMIVIR PHOSPHATE,59.06
-Olanzapine,78.247
-Ondansetron,57.659000000000006
-Orabloc,85.0
-Prednisolone,51.781
-Prednisone,62.54500000000001
-Prozac,68.882
-Rayos,55.58
-Reglan,40.814
-Risperidal,80.24900000000001
-Risperidone,54.501
-Risvan,70.974
-Rivaroxaban,59.544
-SERTRALINE,31.028
-SPIRIVA RESPIMAT,64.793
-Salmeterol,75.429
-Serevent,67.86
-Spiriva,72.178
-Symbyax,86.859
-TARPEYO,59.165
-TIOTROPIUM BROMIDE,74.437
-TRIBENZOR,50.993
-Tolazamide,70.08099999999999
-Tolinase,74.437
-Tolsura,49.844
-Trulicity,65.193
-Uceris,41.963
-VERELAN,83.831
-Verapamil Hydrochloride,74.756
-Verzenio,56.869
-Vimovo,85.604
-Warfarin,52.576
-Xarelto,72.178
-Xegylz,83.507
-ZIAGEN,38.018
-ZOLOFT,18.082000000000004
-ZOVIRAX,50.15500000000001
-ZYTIGA,68.234
-Zituvimet,73.782
-Zofran,45.458999999999996
-Zuplenz,59.544
-Zyprexa,91.419
-itraconazole,49.794
+drug_name,satisfaction_score,,,,
+ACYCLOVIR,57.3,,,,
+ADVIL LIQUI-GELS,35.5,,,,
+AMBISOME,55.6,,,,
+AMPHOTEC,54.5,,,,
+APIXABAN,58.4,,,,
+Abacavir,55.8,,,,
+Accuretic,58.8,,,,
+Advair,59.1,,,,
+Ala-cort,59.2,,,,
+Amphotericin B,47.7,,,,
+Atorvastatin,58.4,,,,
+BUDESONIDE,34.5,,,,
+Benadryl,34.2,,,,
+CLARINEX,56.6,,,,
+CLARITIN,61.1,,,,
+Cardizem CD,59.2,,,,
+Coumadin,51,,,,
+Crestor,58.1,,,,
+DIFLUCAN,27.2,,,,
+DYMELOR,51.3,,,,
+Dificid,34.1,,,,
+Diphenhydramine,59.2,,,,
+Duetact,59.3,,,,
+Dulaglutide,58.2,,,,
+Econopred,73.3,,,,
+Eliquis,58,,,,
+Eliquis sprinkle,59.2,,,,
+Esomeprazole,59,,,,
+FIDAXOMICIN,31.3,,,,
+FLUCONAZOLE,29.1,,,,
+Furosemide,58,,,,
+GLUMETZA,57.8,,,,
+Gimoti,58.6,,,,
+Glipizide,45.2,,,,
+Glipizide XL,59.4,,,,
+IBUPROFEN,31.7,,,,
+Jantoven,62.5,,,,
+Janumet,57.8,,,,
+Januvia,59,,,,
+Ketoconazole,43.8,,,,
+Ketoderm,69.6,,,,
+Lasix,57.4,,,,
+Lipitor,43.7,,,,
+Lybalvi,57.9,,,,
+Lypqozet,57.9,,,,
+METAGLIP,59.4,,,,
+METFORMIN HYDROCHLORIDE,61.8,,,,
+Metoclopramide,63.7,,,,
+NIZORAL,38,,,,
+Nexium,59.9,,,,
+OSELTAMIVIR PHOSPHATE,44.1,,,,
+Olanzapine,59.8,,,,
+Ondansetron,60.2,,,,
+Orabloc,59.1,,,,
+Prednisolone,46.8,,,,
+Prednisone,45.6,,,,
+Prozac,60.7,,,,
+Rayos,56.7,,,,
+Reglan,55.3,,,,
+Risperidal,58.8,,,,
+Risperidone,58.7,,,,
+Risvan,58.8,,,,
+Rivaroxaban,57.8,,,,
+SERTRALINE,10.6,,,,
+SPIRIVA RESPIMAT,59.2,,,,
+Salmeterol,58,,,,
+Serevent,58.4,,,,
+Spiriva,59,,,,
+Symbyax,58.9,,,,
+TARPEYO,74.1,,,,
+TIOTROPIUM BROMIDE,58.7,,,,
+TRIBENZOR,58.8,,,,
+Tolazamide,60.6,,,,
+Tolinase,58.6,,,,
+Tolsura,47.7,,,,
+Trulicity,59.2,,,,
+Uceris,44.4,,,,
+VERELAN,59.3,,,,
+Verapamil Hydrochloride,59.5,,,,
+Verzenio,73.5,,,,
+Vimovo,58.6,,,,
+Warfarin,47.5,,,,
+Xarelto,59.1,,,,
+Xegylz,60.1,,,,
+ZIAGEN,40.8,,,,
+ZOLOFT,27.8,,,,
+ZOVIRAX,52.2,,,,
+ZYTIGA,72.4,,,,
+Zituvimet,59.2,,,,
+Zofran,51.3,,,,
+Zuplenz,57.8,,,,
+Zyprexa,60.9,,,,
+itraconazole,42.9,,,,
