@@ -144,6 +144,55 @@ const SafetyAnalysisCard = ({ title, interaction }: { title: string; interaction
   );
 };
 
+// --- NEW COMPONENT: Clinical Efficacy Card ---
+const ClinicalEfficacyCard = ({ title, alternatives }: { title: string; alternatives: any[] }) => {
+    if (!alternatives || alternatives.length === 0) {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <TestTube2 className="h-5 w-5 mr-2 text-blue-500" />
+              {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500">No clinically similar alternatives found based on available data.</p>
+          </CardContent>
+        </Card>
+      );
+    }
+  
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center text-lg">
+            <TestTube2 className="h-5 w-5 mr-2 text-blue-500" />
+            {title}
+          </CardTitle>
+          <CardDescription>Ranked by similarity, then by lower cost.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-3">
+            {alternatives.map((alt, index) => (
+              <li key={index} className="flex justify-between items-center p-2 border-b last:border-b-0">
+                <div>
+                  <p className="font-semibold text-gray-800">{alt.drug_info.drug_name}</p>
+                  <p className="text-xs text-gray-500">Similarity: <span className="font-medium text-blue-600">{(alt.efficacy_similarity * 100).toFixed(1)}%</span></p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold text-sm ${alt.cost_difference <= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {alt.cost_difference <= 0 ? `-` : `+`}${(Math.abs(alt.cost_difference)).toFixed(2)}
+                  </p>
+                   <p className="text-xs text-gray-500">vs. Original</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    );
+  };
+
 // --- Main Dashboard Component ---
 
 export default function Dashboard() {
@@ -153,8 +202,8 @@ export default function Dashboard() {
   const [recommendation, setRecommendation] = useState<RecommendationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drug1Suggestions, setDrug1Suggestions] = useState(false); // Added for Drug 1 suggestions
-  const [drug2Suggestions, setDrug2Suggestions] = useState(false); // Added for Drug 2 suggestions
+  const [drug1Suggestions, setDrug1Suggestions] = useState(false);
+  const [drug2Suggestions, setDrug2Suggestions] = useState(false);
 
   // --- Improved Error Handling ---
   const handleApiError = (err: any, context: string) => {
@@ -251,36 +300,47 @@ export default function Dashboard() {
       const recommended = recommendation.recommended_drugs[0];
       const { analysis } = recommendation;
       return (
-        <Card className="mt-6 animate-in fade-in">
-          <CardHeader>
-            <CardTitle>Single Drug Recommendation Result</CardTitle>
-          </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-semibold mb-2 text-sm text-gray-500">Original Drug</h3>
-              <DrugCard drug={original} />
-              <h3 className="font-semibold mb-2 mt-4 text-sm text-gray-500">Recommended Alternative</h3>
-              <DrugCard drug={recommended} className="border-2 border-blue-500" />
-            </div>
-            <Card>
-              <CardHeader><CardTitle className="text-lg">Impact Analysis</CardTitle></CardHeader>
-              <CardContent className="space-y-4 text-center">
-                <div>
-                  <p className="text-sm text-gray-500">Potential Saving Per Member</p>
-                  <p className="text-3xl font-bold text-green-600">
-                    ${(analysis.cost_saving_per_member || 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="flex items-center justify-center p-3 bg-green-50 rounded-lg">
-                  <TrendingDown className="h-6 w-6 mr-2 text-green-600" />
-                  <span className="text-xl font-bold text-green-600">
-                    {(analysis.percentage_saving || 0).toFixed(1)}% Cost Reduction
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
+        // MODIFIED: Wrapped in a div for spacing
+        <div className="mt-6 space-y-6 animate-in fade-in">
+          <Card>
+            <CardHeader>
+              <CardTitle>Single Drug Recommendation Result</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2 text-sm text-gray-500">Original Drug</h3>
+                <DrugCard drug={original} />
+                <h3 className="font-semibold mb-2 mt-4 text-sm text-gray-500">Recommended Alternative</h3>
+                <DrugCard drug={recommended} className="border-2 border-blue-500" />
+              </div>
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Impact Analysis</CardTitle></CardHeader>
+                <CardContent className="space-y-4 text-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Potential Saving Per Member</p>
+                    <p className="text-3xl font-bold text-green-600">
+                      ${(analysis.cost_saving_per_member || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center p-3 bg-green-50 rounded-lg">
+                    <TrendingDown className="h-6 w-6 mr-2 text-green-600" />
+                    <span className="text-xl font-bold text-green-600">
+                      {(analysis.percentage_saving || 0).toFixed(1)}% Cost Reduction
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+          
+          {/* NEW: Clinical Efficacy Section for Single Drug */}
+          {analysis.clinical_efficacy_alternatives && (
+            <ClinicalEfficacyCard
+              title={`Clinically Similar Alternatives to ${original.drug_name}`}
+              alternatives={analysis.clinical_efficacy_alternatives}
+            />
+          )}
+        </div>
       );
     }
     if (recommendation.analysis?.type === 'combination' && recommendation.recommended_drugs?.length) {
@@ -332,6 +392,25 @@ export default function Dashboard() {
               <SafetyAnalysisCard title="Original Pair Safety" interaction={analysis.original_interaction} />
               <SafetyAnalysisCard title="Recommended Pair Safety" interaction={analysis.recommended_interaction} />
             </div>
+
+            {/* NEW: Clinical Efficacy Section for Combination */}
+            {analysis.clinical_efficacy_alternatives && (
+                <div className="pt-6 border-t">
+                    <h2 className="text-xl font-semibold tracking-tight text-gray-800 mb-4">
+                        Clinically Similar Alternatives
+                    </h2>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <ClinicalEfficacyCard 
+                            title={`For ${orig1.drug_name}`}
+                            alternatives={analysis.clinical_efficacy_alternatives.drug1}
+                        />
+                        <ClinicalEfficacyCard 
+                            title={`For ${orig2.drug_name}`}
+                            alternatives={analysis.clinical_efficacy_alternatives.drug2}
+                        />
+                    </div>
+                </div>
+            )}
           </CardContent>
         </Card>
       );

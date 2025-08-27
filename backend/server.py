@@ -1,5 +1,3 @@
-# server.py
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
@@ -7,46 +5,46 @@ import numpy as np
 import warnings
 import pickle
 import os
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore', category=UserWarning, module='pandas')
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 # --- Configuration ---
-# Update these paths to point to your model and data files
 INTERACTION_MODEL_FILEPATH = "data/drug_interaction_model (1).pkl"
 GROUPING_MODEL_FILEPATH = "data/drug_grouping_model.pkl"
+EFFICACY_MODEL_FILEPATH = "data/clinical_efficacy_model.pkl"
 DATA_FILEPATH = "data/test002.csv"
 
-# -------------------------------
 # Flask App Initialization
-# -------------------------------
 app = Flask(__name__)
 CORS(app)
 
 # Global variables to hold the loaded models and dataframe
 ml_pipeline = None
 grouping_model = None
+efficacy_model = None
 df = None
 
-# -------------------------------
-# Core Application Logic (Adapted from analyzer script)
-# -------------------------------
-
-def load_models(inter_filepath=INTERACTION_MODEL_FILEPATH, group_filepath=GROUPING_MODEL_FILEPATH):
+def load_models(inter_filepath=INTERACTION_MODEL_FILEPATH, 
+                group_filepath=GROUPING_MODEL_FILEPATH,
+                efficacy_filepath=EFFICACY_MODEL_FILEPATH):
     """
     Loads the pre-trained models from pickle files.
     """
-    global ml_pipeline, grouping_model
+    global ml_pipeline, grouping_model, efficacy_model
     try:
         with open(inter_filepath, 'rb') as f:
             ml_pipeline = pickle.load(f)
         with open(group_filepath, 'rb') as f:
             grouping_model = pickle.load(f)
-        print("✅ Pre-trained models loaded successfully.")
+        with open(efficacy_filepath, 'rb') as f:
+            efficacy_model = pickle.load(f)
+        print("✅ All pre-trained models loaded successfully.")
         return True
-    except FileNotFoundError:
-        print(f"❌ ERROR: Model file not found. Please run the training script first.")
+    except FileNotFoundError as e:
+        print(f"❌ ERROR: Model file not found: {e}. Please run the training script first.")
         return False
     except Exception as e:
         print(f"❌ An error occurred while loading the models: {e}")
@@ -59,6 +57,7 @@ def load_and_clean_data(filepath):
     try:
         df_loaded = pd.read_csv(filepath)
         df_loaded.columns = df_loaded.columns.str.strip()
+        
         # Clean numeric columns with commas and currency symbols
         numeric_cols = ['pmpm_cost', 'avg_age', 'total_prescription_fills', 'total_drug_cost', 'member_count', 'Repeat_Utilization']
         for col in numeric_cols:
@@ -67,11 +66,15 @@ def load_and_clean_data(filepath):
                     df_loaded[col].astype(str).str.replace('$', '', regex=False).str.replace(',', ''),
                     errors='coerce'
                 )
+        
         for col in ['drug_name', 'generic_name']:
             if col in df_loaded.columns:
                 df_loaded[col] = df_loaded[col].astype(str).str.strip().str.upper().replace('NAN', np.nan)
+        
         df_loaded['therapeutic_equivalence_code'].fillna('NA', inplace=True)
         df_loaded['drug_interactions'].fillna('No interaction data', inplace=True)
+        df_loaded['clinical_efficacy'].fillna('No efficacy data available', inplace=True)
+        
         # Drop rows where essential data is missing
         df_loaded.dropna(subset=['drug_name', 'generic_name', 'pmpm_cost', 'therapeutic_class'], inplace=True)
         print("✅ Dataset loaded and cleaned successfully.")
@@ -83,14 +86,83 @@ def load_and_clean_data(filepath):
         print(f"❌ An error occurred while loading the data: {e}")
         return None
 
+def find_clinical_efficacy_alternatives(drug_info, top_n=3):
+    """
+    NEW: Finds alternatives based on clinical efficacy similarity using topic modeling.
+    Prioritizes drugs with same generic_name and therapeutic_class.
+    """
+    if not efficacy_model:
+        print("❌ Clinical efficacy model not available.")
+        return []
+    
+    try:
+        # Get drug information
+        target_generic = drug_info['generic_name']
+        target_therapeutic_class = drug_info['therapeutic_class']
+        target_efficacy = str(drug_info.get('clinical_efficacy', 'No efficacy data available'))
+        
+        # Filter candidates: same generic name and therapeutic class
+        efficacy_data = efficacy_model['drug_data']
+        candidates = efficacy_data[
+            (efficacy_data['generic_name'] == target_generic) &
+            (efficacy_data['therapeutic_class'] == target_therapeutic_class) &
+            (efficacy_data['drug_name'] != drug_info['drug_name'])  # Exclude the same drug
+        ].copy()
+        
+        if candidates.empty:
+            print(f"No clinical efficacy alternatives found for {drug_info['drug_name']} with same generic/therapeutic class.")
+            return []
+        
+        # Vectorize target drug's clinical efficacy
+        target_tfidf = efficacy_model['tfidf_vectorizer'].transform([target_efficacy])
+        
+        # Get topic distributions for target drug
+        target_nmf = efficacy_model['nmf_model'].transform(target_tfidf)
+        target_lda = efficacy_model['lda_model'].transform(target_tfidf)
+        target_combined = 0.6 * target_nmf + 0.4 * target_lda
+        
+        # Calculate similarities with candidates
+        similarities = []
+        for idx, candidate in candidates.iterrows():
+            candidate_efficacy = str(candidate['clinical_efficacy'])
+            candidate_tfidf = efficacy_model['tfidf_vectorizer'].transform([candidate_efficacy])
+            
+            candidate_nmf = efficacy_model['nmf_model'].transform(candidate_tfidf)
+            candidate_lda = efficacy_model['lda_model'].transform(candidate_tfidf)
+            candidate_combined = 0.6 * candidate_nmf + 0.4 * candidate_lda
+            
+            # Calculate cosine similarity between topic distributions
+            similarity = cosine_similarity(target_combined, candidate_combined)[0][0]
+            
+            similarities.append({
+                'drug_info': candidate.to_dict(),
+                'efficacy_similarity': similarity,
+                'cost_difference': candidate['pmpm_cost'] - drug_info['pmpm_cost']
+            })
+        
+        # Sort by efficacy similarity (descending) then by cost (ascending)
+        similarities.sort(key=lambda x: (-x['efficacy_similarity'], x['drug_info']['pmpm_cost']))
+        
+        # Return top alternatives
+        top_alternatives = similarities[:top_n]
+        print(f"✅ Found {len(top_alternatives)} clinical efficacy-based alternatives.")
+        
+        return top_alternatives
+        
+    except Exception as e:
+        print(f"❌ Error in clinical efficacy recommendation: {e}")
+        return []
+
 def check_interaction_with_ml(drug1_info, drug2_info):
     """
     Uses the loaded interaction model to classify risk, with combined text for context.
     """
     if not ml_pipeline:
         return "Warning", "ML model is not available."
+    
     interaction_text = "No interaction data"
     source_drug_for_prediction = None
+    
     if str(drug2_info['generic_name']).lower() in str(drug1_info['drug_interactions']).lower():
         interaction_text = str(drug1_info['drug_interactions'])
         source_drug_for_prediction = drug1_info
@@ -99,6 +171,7 @@ def check_interaction_with_ml(drug1_info, drug2_info):
         source_drug_for_prediction = drug2_info
     else:
         return None
+
     # Combine text for prediction (matches training)
     combined_text = f"{source_drug_for_prediction['drug_name']} {source_drug_for_prediction['generic_name']} {interaction_text}"
     prediction_df = pd.DataFrame([{
@@ -106,6 +179,7 @@ def check_interaction_with_ml(drug1_info, drug2_info):
         'pmpm_cost': source_drug_for_prediction['pmpm_cost'],
         'avg_age': source_drug_for_prediction['avg_age']
     }])
+    
     predicted_risk = ml_pipeline.predict(prediction_df)[0]
     full_description = f"DRUG INTERACTION FOUND in '{source_drug_for_prediction['drug_name']}' data: {interaction_text}"
     return predicted_risk, full_description
@@ -126,19 +200,25 @@ def find_cost_effective_alternative(df_all, drug_info, generic_name):
     """
     drug_info = dict(drug_info)
     if pd.isna(generic_name) or generic_name == 'NA':
-        print(f"  - Generic name for '{drug_info['drug_name']}' is missing. Cannot find alternatives.")
+        print(f" - Generic name for '{drug_info['drug_name']}' is missing. Cannot find alternatives.")
         return drug_info
+
     if drug_info['therapeutic_equivalence_code'] == 'NA':
-        print(f"  - Original drug '{drug_info['drug_name']}' has TE code 'NA'. No alternative can be provided.")
+        print(f" - Original drug '{drug_info['drug_name']}' has TE code 'NA'. No alternative can be provided.")
         return drug_info
+
     cluster = get_cluster(drug_info)
     if cluster is None:
         return drug_info
+
     alternatives = df_all[
         (df_all['cluster'] == cluster) &
         (df_all['therapeutic_equivalence_code'] != 'NA')
     ].dropna(subset=['pmpm_cost'])
-    if alternatives.empty: return drug_info
+
+    if alternatives.empty: 
+        return drug_info
+
     return alternatives.sort_values('pmpm_cost').iloc[0].to_dict()
 
 def find_safe_and_cost_effective_pair(df_all, drug1_info, generic1, drug2_info, generic2):
@@ -149,6 +229,7 @@ def find_safe_and_cost_effective_pair(df_all, drug1_info, generic1, drug2_info, 
     drug2_info = dict(drug2_info)
     alts1 = pd.DataFrame([drug1_info])
     alts2 = pd.DataFrame([drug2_info])
+
     if pd.notna(generic1) and drug1_info['therapeutic_equivalence_code'] != 'NA':
         cluster1 = get_cluster(drug1_info)
         if cluster1 is not None:
@@ -159,7 +240,8 @@ def find_safe_and_cost_effective_pair(df_all, drug1_info, generic1, drug2_info, 
             if alts1.empty:
                 alts1 = pd.DataFrame([drug1_info])
     else:
-        print(f"  - Drug 1 '{drug1_info['drug_name']}' has TE code 'NA' or invalid generic. Using original.")
+        print(f" - Drug 1 '{drug1_info['drug_name']}' has TE code 'NA' or invalid generic. Using original.")
+
     if pd.notna(generic2) and drug2_info['therapeutic_equivalence_code'] != 'NA':
         cluster2 = get_cluster(drug2_info)
         if cluster2 is not None:
@@ -170,15 +252,17 @@ def find_safe_and_cost_effective_pair(df_all, drug1_info, generic1, drug2_info, 
             if alts2.empty:
                 alts2 = pd.DataFrame([drug2_info])
     else:
-        print(f"  - Drug 2 '{drug2_info['drug_name']}' has TE code 'NA' or invalid generic. Using original.")
-    print("  - Searching for the cheapest, non-interacting combination using the pre-trained model...")
+        print(f" - Drug 2 '{drug2_info['drug_name']}' has TE code 'NA' or invalid generic. Using original.")
+
+    print(" - Searching for the cheapest, non-interacting combination using the pre-trained model...")
     for _, alt1 in alts1.iterrows():
         for _, alt2 in alts2.iterrows():
             interaction_result = check_interaction_with_ml(alt1.to_dict(), alt2.to_dict())
             if interaction_result is None or interaction_result[0] == "Low Risk":
-                print("  - Found a safe and cost-effective pair.")
+                print(" - Found a safe and cost-effective pair.")
                 return alt1.to_dict(), alt2.to_dict()
-    print("  - ⚠️ Warning: Could not find any combination without a potential interaction.")
+
+    print(" - ⚠️ Warning: Could not find any combination without a potential interaction.")
     return alts1.iloc[0].to_dict(), alts2.iloc[0].to_dict()
 
 # Add cluster prediction to df after loading
@@ -190,9 +274,6 @@ def add_clusters_to_df(df_loaded):
         df_loaded.loc[valid_rows, 'cluster'] = grouping_model['kmeans'].predict(X)
     return df_loaded
 
-# -------------------------------
-# Helper Function for API Response
-# -------------------------------
 def clean_nan_for_json(obj):
     """Recursively converts NaN values to None for JSON compatibility."""
     if isinstance(obj, list):
@@ -203,10 +284,7 @@ def clean_nan_for_json(obj):
         return None
     return obj
 
-# -------------------------------
 # Flask API Endpoints
-# -------------------------------
-
 @app.route('/api/drugs', methods=['GET'])
 def get_drug_names():
     """Provides the list of all unique drug names and their generic names."""
@@ -220,7 +298,7 @@ def get_drug_stats():
     """Provides key metrics for KPI cards on a dashboard."""
     if df is None:
         return jsonify({'error': 'Dataset not loaded'}), 500
-    
+
     try:
         stats = {
             'total_drugs': int(df['drug_name'].nunique()),
@@ -235,17 +313,17 @@ def get_drug_stats():
 
 @app.route('/api/recommend', methods=['POST'])
 def get_recommendations():
-    """The main recommendation endpoint, using the specified logic."""
+    """The main recommendation endpoint with enhanced clinical efficacy recommendations."""
     if ml_pipeline is None or grouping_model is None or df is None:
         return jsonify({'error': 'Models or dataset not loaded'}), 500
-    
+
     data = request.get_json()
     drug_names = [name.strip().upper() for name in data.get('drug_names', [])]
-    
+
     if not drug_names:
         return jsonify({'error': 'No drug names provided'}), 400
 
-    # Find the drug info from the dataframe. We take the first match for each name.
+    # Find the drug info from the dataframe
     original_drugs_info = []
     selected_generics = []
     for name in drug_names:
@@ -271,40 +349,49 @@ def get_recommendations():
     if len(original_drugs_info) == 1:
         drug_orig = original_drugs_info[0]
         generic_name = selected_generics[0]
-        
+
+        # Primary recommendation: Cost-effective alternative
         drug_rec = find_cost_effective_alternative(df, drug_orig, generic_name)
         recommended_drugs.append(drug_rec)
-        
+
         cost_saving = drug_orig['pmpm_cost'] - drug_rec['pmpm_cost']
         percentage_saving = (cost_saving / drug_orig['pmpm_cost']) * 100 if drug_orig['pmpm_cost'] > 0 else 0
-        
+
+        # NEW: Clinical efficacy alternatives
+        efficacy_alternatives = find_clinical_efficacy_alternatives(drug_orig, top_n=3)
+
         analysis = {
             'type': 'single_drug',
             'cost_saving_per_member': cost_saving,
-            'percentage_saving': percentage_saving
+            'percentage_saving': percentage_saving,
+            'clinical_efficacy_alternatives': efficacy_alternatives
         }
 
     elif len(original_drugs_info) >= 2:
         drug1_orig, drug2_orig = original_drugs_info[0], original_drugs_info[1]
         generic1, generic2 = selected_generics[0], selected_generics[1]
-        
+
         # Check interaction for the original pair
         original_interaction = check_interaction_with_ml(drug1_orig, drug2_orig)
-        
+
         # Find the best recommended pair
         drug1_rec, drug2_rec = find_safe_and_cost_effective_pair(
             df, drug1_orig, generic1, drug2_orig, generic2
         )
         recommended_drugs.extend([drug1_rec, drug2_rec])
-        
+
         # Check interaction for the recommended pair
         final_interaction = check_interaction_with_ml(drug1_rec, drug2_rec)
-        
+
         total_orig_cost = drug1_orig['pmpm_cost'] + drug2_orig['pmpm_cost']
         total_rec_cost = drug1_rec['pmpm_cost'] + drug2_rec['pmpm_cost']
         total_saving = total_orig_cost - total_rec_cost
         percentage_saving = (total_saving / total_orig_cost) * 100 if total_orig_cost > 0 else 0
-        
+
+        # NEW: Clinical efficacy alternatives for both drugs
+        efficacy_alternatives_drug1 = find_clinical_efficacy_alternatives(drug1_orig, top_n=3)
+        efficacy_alternatives_drug2 = find_clinical_efficacy_alternatives(drug2_orig, top_n=3)
+
         analysis = {
             'type': 'combination',
             'total_cost_saving': total_saving,
@@ -316,35 +403,36 @@ def get_recommendations():
             'recommended_interaction': {
                 'risk_label': final_interaction[0] if final_interaction else "No Interaction",
                 'description': final_interaction[1] if final_interaction else "This combination is considered safe (no interaction found)."
+            },
+            'clinical_efficacy_alternatives': {
+                'drug1': efficacy_alternatives_drug1,
+                'drug2': efficacy_alternatives_drug2
             }
         }
-    
+
     response = {
         'original_drugs': original_drugs_info,
         'recommended_drugs': recommended_drugs,
         'analysis': analysis
     }
-    
+
     # Clean up any NaN/NaT values before sending JSON
     return jsonify(clean_nan_for_json(response))
 
-
-# -------------------------------
 # Server Initialization
-# -------------------------------
 if __name__ == '__main__':
-    print("🚀 Starting Drug Recommendation Server...")
-    
+    print("🚀 Starting Enhanced Drug Recommendation Server with Clinical Efficacy...")
+
     if not os.path.exists('data'):
         os.makedirs('data')
         print("Created 'data' directory. Please place your models and CSV file there.")
-        
+
     # Load models and data
     load_models()
     df_temp = load_and_clean_data(DATA_FILEPATH)
     if df_temp is not None:
         df = add_clusters_to_df(df_temp)
-    
+
     if ml_pipeline is not None and grouping_model is not None and df is not None:
         print("✅ Server ready to accept requests!")
         app.run(debug=True, host='0.0.0.0', port=5000)

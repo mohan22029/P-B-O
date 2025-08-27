@@ -12,6 +12,7 @@ import {
 import {
   Activity,
   BarChart3,
+  Calculator,
   Database,
   MessageSquare,
   PillBottle
@@ -24,6 +25,7 @@ const navigationItems = [
   { title: "Sentiment Analysis", url: "/sentiment", icon: MessageSquare },
   { title: "Forecasting", url: "/forecasting", icon: Activity },
   { title: "Formulary", url: "/formulary", icon: PillBottle },
+  { title: "Cost Impact Analyzer", url: "/cost-impact", icon: Calculator },
   // { title: "Scenarios", url: "/scenarios", icon: Calculator },
   // { title: "Providers", url: "/providers", icon: Users },
   // { title: "Adherence", url: "/adherence", icon: Shield },

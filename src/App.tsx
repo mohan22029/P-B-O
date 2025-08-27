@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import DrugDatabase from "./pages/DrugDatabase";
 import SentimentAnalysis from "./pages/SentimentAnalysis";
 import Forecasting from "./pages/Forecasting";
+import CostImpactAnalyzer from "./pages/CostImpactAnalyzer";
 import Formulary from "./pages/Formulary";
 import Scenarios from "./pages/Scenarios";
 import Providers from "./pages/Providers";
@@ -45,6 +46,11 @@ const App = () => (
           <Route path="/formulary" element={
             <AppLayout>
               <Formulary />
+            </AppLayout>
+          } />
+          <Route path="/cost-impact" element={
+            <AppLayout>
+              <CostImpactAnalyzer />
             </AppLayout>
           } />
           {/* <Route path="/scenarios" element={
