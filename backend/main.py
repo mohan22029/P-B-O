@@ -7,6 +7,7 @@ This version ensures ALL original API endpoint URLs are preserved without any ch
 - Original form.py (Flask): Formulary data handler.
 - Original server.py (Flask): Drug recommendation and interaction engine.
 - NEW cia.py (Flask): Cost Impact Analysis logger and summarizer.
+- NEW endpoints added to support the DrugDatabase component.
 
 The Flask applications are converted to Blueprints and registered on a single Flask app,
 which is then mounted onto the main FastAPI server at the root path.
@@ -31,6 +32,7 @@ import warnings
 from typing import List
 import sqlite3 ### NEW ###
 from datetime import datetime ### NEW ###
+import random ### NEW for DrugDatabase component ###
 
 # FastAPI Imports
 from fastapi import FastAPI, HTTPException, Form
@@ -62,6 +64,17 @@ logger = logging.getLogger(__name__)
 
 # Initializing FastAPI app (This is the main application)
 app = FastAPI(title="Combined Drug Analytics API")
+
+# --- NEW: Health Check Endpoint for DrugDatabase Component ---
+@app.get("/health", tags=["Server Health"])
+async def health_check():
+    """Provides a health check for the server and dataset status."""
+    # This endpoint relies on the global df_recommend being loaded later
+    return {
+        "status": "ok" if df_recommend is not None and not df_recommend.empty else "warning_no_data",
+        "dataset_size": len(df_recommend) if df_recommend is not None else 0,
+        "message": "Server is running." if df_recommend is not None and not df_recommend.empty else "Server is running, but recommendation/database CSV could not be loaded."
+    }
 
 # Loading pre-trained ARIMA models
 drug_models = {}
@@ -111,7 +124,6 @@ async def forecast(drug_name: str = Form(...), steps: int = Form(90)):
         conf_int = forecast_result.conf_int(alpha=0.05)
         pmpm_costs = forecast_values / 12
         
-        logger.info(f"Generated forecast for {drug_name} with {steps} steps")
         return {
             "drug_name": drug_name,
             "years": [f"Year +{i+1}" for i in range(steps)],
@@ -188,8 +200,8 @@ def get_formulary():
 
         if search:
             mask = (filtered['drug_name'].str.lower().str.contains(search, na=False) |
-                    filtered['NDC'].str.contains(search, na=False) |
-                    filtered['RXCUI'].str.contains(search, na=False))
+                    filtered['NDC'].str.lower().str.contains(search, na=False) |      # CHANGED
+                    filtered['RXCUI'].str.lower().str.contains(search, na=False)) 
             filtered = filtered[mask]
 
         if tier != 'all':
@@ -197,10 +209,10 @@ def get_formulary():
             if tier_num:
                 filtered = filtered[filtered['TIER_LEVEL_VALUE'] == tier_num]
 
-        if pa != 'all':
-            pa_yn = 'Y' if pa == 'pa_required' else 'N'
-            filtered = filtered[filtered['PRIOR_AUTHORIZATION_YN'] == pa_yn]
-
+        if pa == 'pa_required':
+            filtered = filtered[filtered['PRIOR_AUTHORIZATION_YN'] == 'Y']
+        elif pa == 'no_pa':
+            filtered = filtered[filtered['PRIOR_AUTHORIZATION_YN'] == 'N']
         total = len(filtered)
         start = (page - 1) * limit
         end = min(start + limit, total)
@@ -356,7 +368,12 @@ def find_cost_effective_alternative(df_all, drug_info, generic_name):
     if cluster is None: return drug_info
     alternatives = df_all[(df_all['cluster'] == cluster) & (df_all['therapeutic_equivalence_code'] != 'NA')].dropna(subset=['pmpm_cost'])
     if alternatives.empty: return drug_info
-    return alternatives.sort_values('pmpm_cost').iloc[0].to_dict()
+    cheapest_alternative = alternatives.sort_values('pmpm_cost').iloc[0].to_dict()
+
+    if cheapest_alternative['pmpm_cost'] < drug_info['pmpm_cost']:
+        return cheapest_alternative
+    else:
+        return drug_info
 
 def find_safe_and_cost_effective_pair(df_all, drug1_info, generic1, drug2_info, generic2):
     drug1_info, drug2_info = dict(drug1_info), dict(drug2_info)
@@ -450,7 +467,6 @@ def get_recommendations():
         efficacy_alternatives = find_clinical_efficacy_alternatives(drug_orig, top_n=3)
         analysis = {'type': 'single_drug', 'cost_saving_per_member': cost_saving, 'percentage_saving': percentage_saving, 'clinical_efficacy_alternatives': efficacy_alternatives}
         
-        ### MODIFIED: Save to CIA database ###
         try:
             if cost_saving > 0:
                 save_cost_impact_to_db(drug_orig['pmpm_cost'], drug_rec['pmpm_cost'])
@@ -477,7 +493,6 @@ def get_recommendations():
             'clinical_efficacy_alternatives': {'drug1': efficacy_alternatives_drug1, 'drug2': efficacy_alternatives_drug2}
         }
         
-        ### MODIFIED: Save to CIA database ###
         try:
             if total_saving > 0:
                 save_cost_impact_to_db(total_orig_cost, total_rec_cost)
@@ -490,7 +505,6 @@ def get_recommendations():
 # ==============================================================================
 # 5. COST IMPACT ANALYSIS API (New Flask Blueprint)
 # ==============================================================================
-### MAKE SURE YOUR SECTION 5 LOOKS EXACTLY LIKE THIS ###
 
 cia_bp = Blueprint('cia_bp', __name__)
 
@@ -537,11 +551,9 @@ def save_cost_impact_to_db(original_cost, reduced_cost):
         raise e
 
 # --- API Endpoints for CIA App (attached to Blueprint) ---
-# Note: We use @cia_bp.route, NOT @app.route
 @cia_bp.route('/api/cia/add', methods=['POST'])
 def add_cost_impact():
     """Add a new cost impact record manually via API"""
-    # ... (function content is the same)
     try:
         data = request.get_json()
         if not data: return jsonify({'error': 'No data provided'}), 400
@@ -558,7 +570,6 @@ def add_cost_impact():
 @cia_bp.route('/api/cia/summary', methods=['GET'])
 def get_cost_summary():
     """Get summary statistics for all cost impact records"""
-    # ... (function content is the same)
     try:
         conn = get_cia_db_connection()
         cursor = conn.cursor()
@@ -579,7 +590,6 @@ def get_cost_summary():
 @cia_bp.route('/api/cia/records', methods=['GET'])
 def get_cost_records():
     """Get all cost impact records"""
-    # ... (function content is the same)
     try:
         conn = get_cia_db_connection()
         cursor = conn.cursor()
@@ -593,7 +603,6 @@ def get_cost_records():
 @cia_bp.route('/api/cia/clear', methods=['DELETE'])
 def clear_cost_records():
     """Clear all cost impact records"""
-    # ... (function content is the same)
     try:
         conn = get_cia_db_connection()
         cursor = conn.cursor()
@@ -603,7 +612,6 @@ def clear_cost_records():
         return jsonify({'message': 'All cost impact records cleared successfully'}), 200
     except Exception as e:
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
-
 
 
 # ==============================================================================
