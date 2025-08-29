@@ -11,6 +11,8 @@ import {
     Tooltip,
     XAxis,
     YAxis,
+    Area,
+    AreaChart,
 } from 'recharts';
 
 // --- UI Components (Card Primitives) ---
@@ -147,11 +149,21 @@ export default function CostImpactAnalyzer() {
     .reverse()
     .map(r => ({
       ...r,
-      // keep original timestamp string but also add a friendly label
       timestampLabel: new Date(r.timestamp).toLocaleString(),
       original_cost: Number(r.original_cost),
       reduced_cost: Number(r.reduced_cost)
     }));
+
+  // Build cumulative savings data
+  let cumulative = 0;
+  const cumulativeData = chartData.map(r => {
+    const savings = r.original_cost - r.reduced_cost;
+    cumulative += savings;
+    return {
+      ...r,
+      cumulative_savings: cumulative
+    };
+  });
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gray-50 min-h-screen">
@@ -198,19 +210,36 @@ export default function CostImpactAnalyzer() {
             {chartData.length === 0 ? (
               <div className="py-8 text-center text-gray-500">No records available to plot.</div>
             ) : (
-              <div style={{ width: '100%', height: 320 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="timestampLabel" tick={{ fontSize: 11 }} minTickGap={20} />
-                    <YAxis />
-                    <Tooltip formatter={(value: any) => (typeof value === 'number' ? `$${value.toFixed(2)}` : value)} />
-                    <Legend />
-                    <Line type="monotone" dataKey="original_cost" name="Original Cost" stroke="#4f46e5" strokeWidth={2} dot={{ r: 2 }} />
-                    <Line type="monotone" dataKey="reduced_cost" name="Reduced Cost" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                {/* Original vs Reduced Costs */}
+                <div style={{ width: '100%', height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="timestampLabel" tick={{ fontSize: 11 }} minTickGap={20} />
+                      <YAxis />
+                      <Tooltip formatter={(value: any) => (typeof value === 'number' ? `$${value.toFixed(2)}` : value)} />
+                      <Legend />
+                      <Line type="monotone" dataKey="original_cost" name="Original Cost" stroke="#4f46e5" strokeWidth={2} dot={{ r: 2 }} />
+                      <Line type="monotone" dataKey="reduced_cost" name="Reduced Cost" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* NEW Cumulative Savings Chart */}
+                <div style={{ width: '100%', height: 280, marginTop: 32 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={cumulativeData} margin={{ top: 8, right: 20, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="timestampLabel" tick={{ fontSize: 11 }} minTickGap={20} />
+                      <YAxis />
+                      <Tooltip formatter={(value: any) => (typeof value === 'number' ? `$${value.toFixed(2)}` : value)} />
+                      <Legend />
+                      <Area type="monotone" dataKey="cumulative_savings" name="Cumulative Savings" stroke="#16a34a" fill="#bbf7d0" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
